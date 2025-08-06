@@ -3,7 +3,12 @@ version: '3.8'
 # 进入容器；docker exec -it tracknet_container /bin/bash
 services:
   tracknet:
-    image: pytorch/pytorch:2.3.0-cuda11.8-cudnn8-devel
+    # 修正：将 image 字段替换为 build 字段
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # 新增：为构建的镜像指定一个名称
+    image: tracknet_custom_image:latest
     container_name: tracknetv1_container
 
     # 仅在镜像不存在时才拉取，如果本地已存在则不拉取
