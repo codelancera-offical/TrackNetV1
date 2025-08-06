@@ -1,58 +1,85 @@
-# TrackNet
-<i> It's not an official implementation </i> <br>
-**Tracknet** is a deep learning network for tracking the tennis ball from broadcast videos in which the ball images are small, blurry, and sometimes even invisible. TrackNet takes multiple consecutive frames as input, model will learn not only object tracking but also trajectory to enhance its capability of positioning and recognition.TrackNet generates gaussian heat map centered on ball to indicate position of the ball.
+### README.md
 
-## Architecture
-![](pics/tracknet_arch.jpg)
+#### TrackNetV1 - 基于深度学习的网球追踪系统
 
-## Dataset
-Dataset consists of video clips of 10 broadcast video. Each video contains several clips from ball serving to score. There are 19.835 labeled frames in the dataset. The resolution, frame rate are 1280×720, 30 fps respectively. In the label file, each frame may have the following attributes: "Frame Name", "Visibility Class", "X", "Y", and "Trajectory Pattern". Click the link https://drive.google.com/drive/folders/11r0RUaQHX7I3ANkaYG4jOxXK1OYo01Ut to download the dataset.
+本项目旨在复现 TrackNetv1 模型，一个利用深度学习技术对网球运动进行精准追踪的系统。通过分析连续的视频帧，模型能够预测网球的精确位置，并可生成带有轨迹的可视化视频。
 
-## Getting started
-1. Clone the repository `https://github.com/yastrebksv/TrackNet.git`
-2. Run `pip3 install -r requirements.txt` to install packages required. 
-3. Run `python gt_gen.py <args>` to create ground truth images and train/test labels.
-4. Prepare dataset to the following format:
+> 本项目基于[这个项目](https://github.com/yastrebksv/TrackNet)继续改进，贡献了一个可以直接调通的docker镜像以及requirements.txt。
+
+#### 1\. 环境配置
+
+我们使用 Docker 来确保一个稳定、可复现的开发环境。请按照以下步骤进行配置：
+
+1.  **准备工作**：确保您的系统已安装 Git 和 Docker。
+2.  **克隆仓库**：
+    ```bash
+    git clone https://github.com/codelancera-offical/TrackNetV1
+    cd TrackNetV1
+    ```
+      * `Dockerfile` 和 `docker-compose.yml` 文件应位于此目录。
+3.  **构建并启动容器**：
+    ```bash
+    docker-compose up --build -d
+    ```
+      * 此命令会根据 `Dockerfile` 构建一个包含所有必要依赖（PyTorch, OpenCV, ffmpeg 等）的镜像，并启动一个名为 `tracknetv1_container` 的后台容器。
+4.  **进入容器**：
+    ```bash
+    docker exec -it tracknetv1_container bash
+    ```
+5.  **安装 Python 依赖**：
+    在容器内的 `/app` 目录中，运行以下命令安装 Python 依赖：
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+#### 2\. 数据集准备
+
+本项目的数据集需要进行预处理。
+
+1.  **下载原始数据集**：
+      * 在这里 [https://drive.google.com/drive/folders/11r0RUaQHX7I3ANkaYG4jOxXK1OYo01Ut] 下载原始数据集。
+2.  **放置数据集**：
+      * 将下载后的 `Dataset` 文件夹放置在您主机上的项目根目录（`.../TrackNetV1`）下。
+3.  **运行处理脚本**：
+    在容器终端中，运行 `gt_gen.py` 脚本生成模型所需的训练和验证数据：
+    ```bash
+    python gt_gen.py --path_input /app/Dataset --path_output /app/datasets/trackNet
+    ```
+      * 处理完成后，`/app/datasets/trackNet` 目录下将生成 `labels_train.csv` 和 `labels_val.csv` 文件。
+
+#### 3\. 模型推理
+
+- [预训练模型权重文件](https://drive.google.com/file/d/1XEYZ4myUN7QT-NeBYJI0xteLsvs-ZAOl/view?usp=sharing)
+- 推理视频放在/videos/example目录下即可
+
+##### 开启线性插值
+
+此模式下，程序会修复轨迹中的断点，提供更平滑的追踪效果。
+
+```bash
+python infer_on_video.py --model_path /app/models/pretrained_model_best.pt --video_path /app/videos/example/example000.mp4 --video_out_path /app/videos/output/example000.mp4 --extrapolation
 ```
-datasets/trackNet
-    /images
-        /game1
-            /Clip1
-                /0000.jpg
-                ...
-                /0206.jpg
-            ...
-            /Clip13
-                /0000.jpg
-                ...
-                /0252.jpg
-        ...
-        /game10
-    /gts
-        /game1
-            /Clip1
-                /0000.jpg
-                ...
-                /0206.jpg
-            ...
-            /Clip13
-                /0000.jpg
-                ...
-                /0252.jpg
-        ...
-        /game10
-    /labels_train.csv
-    /labels_val.csv
+
+##### 不开启线性插值
+
+此模式下，程序将只显示模型实际检测到的点。
+
+```bash
+python infer_on_video.py --model_path /app/models/pretrained_model_best.pt --video_path /app/videos/example/example000.mp4 --video_out_path /app/videos/output/example000_nopolation.mp4
 ```
-5. Run `python main.py` to start training
-## Pretrained model
-You can check these weights
-https://drive.google.com/file/d/1XEYZ4myUN7QT-NeBYJI0xteLsvs-ZAOl/view?usp=sharing to try the model
 
-## Inference on video
-![](pics/video_infer.gif)
-Run `python infer_on_video.py <args>` to launch inference on the video. 
+#### 4\. 模型性能
 
-## Reference
-[https://arxiv.org/abs/1907.03698](https://arxiv.org/abs/1907.03698) <br>
-TrackNet: A Deep Learning Network for Tracking High-speed and Tiny Objects in Sports Applications
+以下是模型在验证集上的性能指标：
+
+  * **混淆矩阵**：
+    | | 预测有球 (Positive) | 预测无球 (Negative) |
+    | :--- | :--- | :--- |
+    | **真实有球 (True)** | 5314 | 159 |
+    | **真实无球 (False)**| 185 | 236 |
+
+  * **性能分数**：
+
+      * **Precision (精确率)**：0.966
+      * **Recall (召回率)**：0.971
+      * **F1-Score (F1 分数)**：0.969
