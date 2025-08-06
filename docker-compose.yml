@@ -1,0 +1,37 @@
+version: '3.8'
+# 构建容器：docker-compose up -d
+# 进入容器；docker exec -it tracknet_container /bin/bash
+services:
+  tracknet:
+    image: pytorch/pytorch:2.3.0-cuda11.8-cudnn8-devel
+    container_name: tracknetv1_container
+
+    # 仅在镜像不存在时才拉取，如果本地已存在则不拉取
+    pull_policy: never
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # 设置容器内的共享内存大小
+    shm_size: '8gb'
+
+    # 保持标准输入打开，可以交互
+    stdin_open: true
+    tty: true
+
+    # 卷映射，将主机路径映射到容器内部
+    volumes:
+      # 将主机上的项目代码目录映射到容器内的 /app 目录
+      # 注意：这里的 ./TrackNet 是相对于 docker-compose.yml 文件的相对路径
+      - .:/app
+      
+    # 启动后默认进入的工作目录
+    working_dir: /app
+
+    # 启动容器时执行的命令，进入 bash 终端
+    command: bash
